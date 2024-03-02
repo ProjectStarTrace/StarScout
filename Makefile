@@ -1,30 +1,16 @@
-# Simplified Makefile to compile and link StarScout.cpp
+# Makefile for compiling StarScout
 
-# Compiler settings - Customized for cross-compilation.
-CXX = aarch64-linux-gnu-g++
-CXXFLAGS = -std=c++17 -I$(HOME)/vcpkg/installed/arm64-linux/include
-LDFLAGS = -L$(HOME)/vcpkg/installed/arm64-linux/lib -lcivetweb -lpthread
+# Compiler settings - Can change cc and CFLAGS to whatever is required
+CC = g++
+CFLAGS = -Wall
 
 # Target executable name
 TARGET = StarScout
 
-# Source file
-SRC = $(TARGET).cpp
+# Build target
+$(TARGET): StarScout.cpp
+	$(CC) $(CFLAGS) StarScout.cpp -o $(TARGET)
 
-# Object file
-OBJ = $(SRC:.cpp=.o)
-
-# Compile and link the program
-all: $(TARGET)
-
-$(TARGET): $(OBJ)
-	$(CXX) $(OBJ) -o $@ $(LDFLAGS)
-
-$(OBJ): $(SRC)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Clean build files
+# Clean the built files
 clean:
-	rm -f $(TARGET) $(OBJ)
-
-.PHONY: all clean
+	rm -f $(TARGET)

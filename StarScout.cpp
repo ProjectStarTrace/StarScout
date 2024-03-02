@@ -7,6 +7,8 @@
 #include <netinet/in.h> 
 #include <string.h> 
 #include <arpa/inet.h>
+#include <random>
+#include <ctime>
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {
@@ -22,12 +24,31 @@ void installIperf() {
     }
 }
 
-// Function to perform initial setup, including dependency checks
+// Function to generate a unique Scout ID
+std::string generateScoutID(size_t length) {
+    const std::string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    std::string scoutID;
+    for (size_t i = 0; i < length; ++i) {
+        scoutID += chars[distribution(generator)];
+    }
+    return scoutID;
+}
+
+// Function to perform initial setup, including dependency checks and Scout ID generation
 void initialSetup() {
-    std::cout << "Welcome to StarScout!. Please wait while we get things setup from here...." << std::endl;
+    std::cout << "Welcome to StarScout! Please wait while we get things setup from here...." << std::endl;
     if (!isIperfInstalled()) {
         installIperf();
     }
+
+    // Generate and save Scout ID
+    std::string scoutID = generateScoutID(12);
+    std::ofstream scoutIDFile(".starscout_id");
+    scoutIDFile << scoutID << std::endl;
+    scoutIDFile.close();
 
     // Create a setup file to indicate completion of the setup process
     std::ofstream setupFile(".starscout_setup");
@@ -45,11 +66,9 @@ std::string getHostIPAddress() {
         exit(EXIT_FAILURE);
     }
 
-    // Walk through linked list, maintaining head pointer so we can free list later
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == NULL) continue;  
         if (ifa->ifa_addr->sa_family == AF_INET) { // Check it is IP4
-            // is a valid IP4 Address
             void* tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
             char addressBuffer[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
@@ -64,6 +83,14 @@ std::string getHostIPAddress() {
     return ipStr;
 }
 
+// Function to read the Scout ID from file
+std::string readScoutID() {
+    std::string scoutID;
+    std::ifstream scoutIDFile(".starscout_id");
+    std::getline(scoutIDFile, scoutID);
+    return scoutID;
+}
+
 int main() {
     struct stat buffer;
     if (stat(".starscout_setup", &buffer) != 0) { // Check if setup file exists
@@ -74,7 +101,8 @@ int main() {
 
     CROW_ROUTE(app, "/")([](){
         std::string hostIP = getHostIPAddress();
-        std::string response = "<html><body><h2>Welcome to StarScout!</h2><p>Host IP: " + hostIP + "</p></body></html>";
+        std::string scoutID = readScoutID();
+        std::string response = "<html><body><h2>Welcome to StarScout!</h2><p>Host IP: " + hostIP + "</p><p>Scout ID: " + scoutID + "</p></body></html>";
         return response;
     });
 
