@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <random>
 #include <ctime>
+#include <chrono>
+#include <thread>
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {
@@ -91,18 +93,39 @@ std::string readScoutID() {
     return scoutID;
 }
 
+// Function to run iperf test and save results
+void runIperfTest() {
+    while (true) {
+        system("iperf -c iperf.publicserver.com -p 5201 > .iperf_results 2>&1");
+        std::this_thread::sleep_for(std::chrono::minutes(30));
+    }
+}
+
 int main() {
     struct stat buffer;
     if (stat(".starscout_setup", &buffer) != 0) { // Check if setup file exists
         initialSetup();
     }
 
+    // Start iperf test thread
+    std::thread iperfThread(runIperfTest);
+    iperfThread.detach(); // Detach the thread so the application doesn't wait for it
+
     crow::SimpleApp app;
 
     CROW_ROUTE(app, "/")([](){
         std::string hostIP = getHostIPAddress();
         std::string scoutID = readScoutID();
-        std::string response = "<html><body><h2>Welcome to StarScout!</h2><p>Host IP: " + hostIP + "</p><p>Scout ID: " + scoutID + "</p></body></html>";
+
+        // Read iperf results
+        std::ifstream iperfResultsFile(".iperf_results");
+        std::string iperfResults((std::istreambuf_iterator<char>(iperfResultsFile)), std::istreambuf_iterator<char>());
+
+        std::string response = "<html><body><h2>Welcome to StarScout!</h2>"
+                               "<p>Host IP: " + hostIP + "</p>"
+                               "<p>Scout ID: " + scoutID + "</p>"
+                               "<h3>Iperf Test Results:</h3>"
+                               "<pre>" + iperfResults + "</pre></body></html>";
         return response;
     });
 
