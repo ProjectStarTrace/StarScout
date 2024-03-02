@@ -3,6 +3,10 @@
 #include <fstream>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <ifaddrs.h>
+#include <netinet/in.h> 
+#include <string.h> 
+#include <arpa/inet.h>
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {
@@ -31,6 +35,35 @@ void initialSetup() {
     setupFile.close();
 }
 
+// Function to get the first non-loopback IP address of the host machine
+std::string getHostIPAddress() {
+    struct ifaddrs *ifaddr, *ifa;
+    std::string ipStr = "";
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        exit(EXIT_FAILURE);
+    }
+
+    // Walk through linked list, maintaining head pointer so we can free list later
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL) continue;  
+        if (ifa->ifa_addr->sa_family == AF_INET) { // Check it is IP4
+            // is a valid IP4 Address
+            void* tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            if (strcmp(ifa->ifa_name, "lo") != 0) {  // ignore loop back interface
+                ipStr = addressBuffer;
+                break;
+            }
+        } 
+    }
+
+    freeifaddrs(ifaddr);
+    return ipStr;
+}
+
 int main() {
     struct stat buffer;
     if (stat(".starscout_setup", &buffer) != 0) { // Check if setup file exists
@@ -40,7 +73,9 @@ int main() {
     crow::SimpleApp app;
 
     CROW_ROUTE(app, "/")([](){
-        return "<html><body><h2>Welcome to StarScout</h2></body></html>";
+        std::string hostIP = getHostIPAddress();
+        std::string response = "<html><body><h2>Welcome to StarScout!</h2><p>Host IP: " + hostIP + "</p></body></html>";
+        return response;
     });
 
     app.port(8080).multithreaded().run();
