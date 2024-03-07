@@ -11,6 +11,7 @@
 #include <ctime>
 #include <chrono>
 #include <thread>
+#include <regex>
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {
@@ -93,10 +94,59 @@ std::string readScoutID() {
     return scoutID;
 }
 
-// Function to run iperf test and save results
+// Helper function to get current datetime as string
+std::string currentDateTime() {
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::string s(30, '\0');
+    std::strftime(&s[0], s.size(), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    return s.substr(0, s.find('\0'));
+}
+
+// Function to run iperf test and update files
 void runIperfTest() {
+    std::string hostIP = getHostIPAddress(); // Assume getHostIPAddress() is defined elsewhere in your code
+
     while (true) {
-        system("iperf -c iperf.publicserver.com -p 5201 > .iperf_results 2>&1");
+        // Execute the iperf test and capture its output
+        std::string command = "iperf -c lon.speedtest.clouvider.net -p 5201 2>&1";
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+
+        // Extract the bandwidth from the iperf output
+        std::regex bandwidthRegex(R"(\s+(\d+\sMbits/sec))");
+        std::smatch matches;
+        std::string bandwidth = "(no result)";
+        if (std::regex_search(result, matches, bandwidthRegex) && matches.size() > 1) {
+            bandwidth = matches[1].str();
+        }
+
+        // Write to StarScoutStats.txt - overwrites file each time with latest info
+        {
+            std::ofstream statsFile("StarScoutStats.txt", std::ios::trunc);
+            statsFile << "Last IPERF Test Result: " << bandwidth << "\nPublic IP Address: " << hostIP << std::endl;
+        }
+
+        // Append to StarScoutDatapoints.csv - historical data
+        {
+            std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
+            // Write header if file is empty/new
+            std::ifstream testEmpty("StarScoutDatapoints.csv");
+            if (testEmpty.peek() == std::ifstream::traits_type::eof()) {
+                datapointsFile << "DateTime,IP Address,Bandwidth\n";
+            }
+            testEmpty.close();
+            
+            datapointsFile << currentDateTime() << "," << hostIP << "," << bandwidth << "\n";
+        }
+
+        // Wait for 30 minutes before running the test again
         std::this_thread::sleep_for(std::chrono::minutes(30));
     }
 }
