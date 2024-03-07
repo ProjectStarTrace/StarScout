@@ -1,2 +1,4 @@
 .starscout_setup
 .starscout_id
+*.txt
+*.csv
