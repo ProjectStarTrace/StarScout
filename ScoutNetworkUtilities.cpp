@@ -79,8 +79,8 @@ void grabNetworkInfo() {
     std::string hostIP = getHostIPAddress(); // Assume getHostIPAddress() is defined elsewhere in your code
 
     while (true) {
-        // Execute the iperf test and capture its output
-        std::string command = "iperf -c lon.speedtest.clouvider.net -p 5201 2>&1";
+       // Execute the speedtest-cli test and capture its output
+        std::string command = "speedtest --json 2>&1"; // Use JSON format for easier parsing
         std::array<char, 128> buffer;
         std::string result;
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
@@ -90,17 +90,26 @@ void grabNetworkInfo() {
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
             result += buffer.data();
         }
+        
+        double downloadSpeed = 0; // Initialize with a default value
+        double uploadSpeed = 0; // Initialize with a default value
 
-        // Extract the bandwidth from the iperf output
-        std::regex bandwidthRegex(R"(\s+(\d+\sMbits/sec))");
-        std::smatch matches;
-        std::string bandwidth = "(no result)";
-        if (std::regex_search(result, matches, bandwidthRegex) && matches.size() > 1) {
-            bandwidth = matches[1].str();
-            std::cout << "Extracted bandwidth: " << bandwidth << std::endl;
-        } 
-        else {
-            std::cout << "Bandwidth extraction failed." << std::endl;
+         try {
+            auto jsonResult = nlohmann::json::parse(result);
+
+            // Assuming the JSON structure, extract download and upload speeds
+            downloadSpeed = jsonResult["download"]; // This is in bytes per second
+            uploadSpeed = jsonResult["upload"]; // This is in bytes per second
+
+            // Convert speeds from bytes per second to Mbits/sec for consistency
+            downloadSpeed = (downloadSpeed * 8) / (1000 * 1000); // Convert bytes to bits and then to Mbits
+            uploadSpeed = (uploadSpeed * 8) / (1000 * 1000); // Convert bytes to bits and then to Mbits
+
+            std::cout << "Download Speed: " << downloadSpeed << " Mbits/sec" << std::endl;
+            std::cout << "Upload Speed: " << uploadSpeed << " Mbits/sec" << std::endl;
+        } catch (nlohmann::json::parse_error& e) {
+            std::cerr << "JSON parsing failed: " << e.what() << std::endl;
+            // Handle parsing failure
         }
 
         std::string geolocationInfo = "";
@@ -116,10 +125,9 @@ void grabNetworkInfo() {
             };
 
             // Extract fields safely
-            std::string ip,hostname,city, region,country,location = "";
+            std::string ip,city,region,country,location = "";
 
             ip = getJsonStringValue("ip");
-            hostname = getJsonStringValue("hostname");
             city = getJsonStringValue("city");
             region = getJsonStringValue("region");
             country = getJsonStringValue("country");
@@ -128,9 +136,9 @@ void grabNetworkInfo() {
             // Write to StarScoutStats.txt - overwrites file each time with latest info
             {
                 std::ofstream statsFile("StarScoutStats.txt", std::ios::trunc);
-                statsFile << "Last IPERF Test Result: " << bandwidth << "\n"
+                statsFile << "Download: " << downloadSpeed << "\n"
+                          << "Upload: " << uploadSpeed << "\n"
                           << "Public IP Address: " << ip << "\n"
-                          << "Hostname: " << hostname << "\n"
                           << "Location: " << city << ", " << region << ", " << country << "\n"
                           << "Coordinates: " << location << std::endl;
             }
@@ -142,14 +150,14 @@ void grabNetworkInfo() {
 
             std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
             if (isEmpty) {
-                datapointsFile << "DateTime,IP Address,Bandwidth,Hostname,City,Region,Country,Coordinates\n";
+                datapointsFile << "DateTime,IP Address,downloadSpeed,uploadSpeed,City,Region,Country,Coordinates\n";
             }
 
             // Append new data
             datapointsFile << currentDateTime() << ","
                            << ip << ","
-                           << bandwidth << ","
-                           << hostname << ","
+                           << downloadSpeed << ","
+                           << uploadSpeed << ","
                            << city << ","
                            << region << ","
                            << country << ","

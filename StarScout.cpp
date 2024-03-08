@@ -109,8 +109,9 @@ int main() {
     CROW_ROUTE(app, "/")([]() {
     std::string hostIP = getHostIPAddress();
     std::string scoutID = readScoutID();
-    std::string bandwidth = "Unknown"; // Default value
-    std::string hostname, city, region, country, location;
+    std::string download = "Waiting for Result"; // Default value
+    std::string upload = "Waiting for Result"; // Default value
+    std::string city, region, country, location;
 
     // Read and extract data from StarScoutStats.txt
     std::ifstream statsFile("StarScoutStats.txt");
@@ -119,8 +120,6 @@ int main() {
         while (getline(statsFile, line)) {
             if (line.find("Public IP Address:") != std::string::npos) {
                 hostIP = line.substr(line.find(":") + 2);
-            } else if (line.find("Hostname:") != std::string::npos) {
-                hostname = line.substr(line.find(":") + 2);
             } else if (line.find("Location:") != std::string::npos) {
                 auto locDelim = line.find(":") + 2;
                 city = line.substr(locDelim, line.find(",", locDelim) - locDelim);
@@ -129,8 +128,10 @@ int main() {
                 country = line.substr(line.rfind(",") + 2);
             } else if (line.find("Coordinates:") != std::string::npos) {
                 location = line.substr(line.find(":") + 2);
-            } else if (line.find("Last IPERF Test Result:") != std::string::npos) {
-                bandwidth = line.substr(line.find(":") + 2);
+            } else if (line.find("Download:") != std::string::npos) {
+                download = line.substr(line.find(":") + 2);
+            }else if (line.find("Upload:") != std::string::npos) {
+                upload = line.substr(line.find(":") + 2);
             }
         }
         statsFile.close();
@@ -146,8 +147,8 @@ int main() {
     file.close();
     std::string content = buffer.str();
     
-    std::string placeholders[] = {"{{hostIP}}", "{{scoutID}}", "{{hostname}}", "{{city}}", "{{region}}", "{{country}}", "{{location}}", "{{bandwidth}}"};
-    std::string values[] = {hostIP, scoutID, hostname, city, region, country, location, bandwidth};
+    std::string placeholders[] = {"{{hostIP}}", "{{scoutID}}", "{{city}}", "{{region}}", "{{country}}", "{{location}}", "{{download}}","{{upload}}"};
+    std::string values[] = {hostIP, scoutID, city, region, country, location, download, upload};
 
     for (size_t i = 0; i < sizeof(placeholders)/sizeof(placeholders[0]); ++i) {
         size_t pos = content.find(placeholders[i]);
