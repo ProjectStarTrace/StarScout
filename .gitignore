@@ -2,3 +2,4 @@
 .starscout_id
 *.txt
 *.csv
+*.hpp

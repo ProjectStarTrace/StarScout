@@ -12,6 +12,23 @@
 #include <chrono>
 #include <thread>
 #include <regex>
+#include <memory>
+#include <stdexcept>
+#include <array>
+#include "json.hpp"
+
+std::string getGeolocation() {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("wget -qO - ipinfo.io", "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {
@@ -127,24 +144,50 @@ void runIperfTest() {
             bandwidth = matches[1].str();
         }
 
+        std::string geolocationInfo = getGeolocation(); // Fetch geolocation information in real-time
+
+        // Parse the JSON string for gelocation
+            nlohmann::json json = nlohmann::json::parse(geolocationInfo);
+
+
+            // Extract fields for gelocation
+            std::string ip = json["ip"];
+            std::string hostname = json["hostname"];
+            std::string city = json["city"];
+            std::string region = json["region"];
+            std::string country = json["country"];
+            std::string location = json["loc"]; // Contains both latitude and longitude
+
         // Write to StarScoutStats.txt - overwrites file each time with latest info
         {
             std::ofstream statsFile("StarScoutStats.txt", std::ios::trunc);
-            statsFile << "Last IPERF Test Result: " << bandwidth << "\nPublic IP Address: " << hostIP << std::endl;
+            statsFile << "Last IPERF Test Result: " << bandwidth << "\n"
+                << "Public IP Address: " << ip << "\n"
+                << "Hostname: " << hostname << "\n"
+                << "Location: " << city << ", " << region << ", " << country << "\n"
+                << "Coordinates: " << location << std::endl;
         }
 
-        // Append to StarScoutDatapoints.csv - historical data
-        {
-            std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
-            // Write header if file is empty/new
-            std::ifstream testEmpty("StarScoutDatapoints.csv");
-            if (testEmpty.peek() == std::ifstream::traits_type::eof()) {
-                datapointsFile << "DateTime,IP Address,Bandwidth\n";
-            }
-            testEmpty.close();
-            
-            datapointsFile << currentDateTime() << "," << hostIP << "," << bandwidth << "\n";
+        // Check if the CSV file is empty and write headers if so
+        std::ifstream testEmpty("StarScoutDatapoints.csv");
+        bool isEmpty = testEmpty.peek() == std::ifstream::traits_type::eof();
+        testEmpty.close();
+
+        std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
+        if (isEmpty) {
+            datapointsFile << "DateTime,IP Address,Bandwidth,Hostname,City,Region,Country,Coordinates\n";
         }
+
+        // Append new data
+        datapointsFile << currentDateTime() << ","
+                    << ip << ","
+                    << bandwidth << ","
+                    << hostname << ","
+                    << city << ","
+                    << region << ","
+                    << country << ","
+                    << location << "\n";
+
 
         // Wait for 30 minutes before running the test again
         std::this_thread::sleep_for(std::chrono::minutes(30));
@@ -163,21 +206,54 @@ int main() {
 
     crow::SimpleApp app;
 
-    CROW_ROUTE(app, "/")([](){
-        std::string hostIP = getHostIPAddress();
-        std::string scoutID = readScoutID();
 
-        // Read iperf results
+    CROW_ROUTE(app, "/")([]() {
+    std::string hostIP = getHostIPAddress();
+    std::string scoutID = readScoutID();
+    
+    std::string hostname, city, region, country, location;
+
+    // Read and extract data from StarScoutStats.txt
+    std::ifstream statsFile("StarScoutStats.txt");
+    std::string line;
+    if (statsFile.is_open()) {
+        while (getline(statsFile, line)) {
+            if (line.find("Public IP Address:") != std::string::npos) {
+                hostIP = line.substr(line.find(":") + 2);
+            } else if (line.find("Hostname:") != std::string::npos) {
+                hostname = line.substr(line.find(":") + 2);
+            } else if (line.find("Location:") != std::string::npos) {
+                auto start = line.find(":") + 2;
+                auto end = line.find(",");
+                city = line.substr(start, end - start);
+
+                start = end + 2;
+                end = line.find(",", start);
+                region = line.substr(start, end - start);
+
+                country = line.substr(end + 2);
+            } else if (line.find("Coordinates:") != std::string::npos) {
+                location = line.substr(line.find(":") + 2);
+            }
+        }
+        statsFile.close();
+    }
+
+    // Read iperf results
         std::ifstream iperfResultsFile(".iperf_results");
         std::string iperfResults((std::istreambuf_iterator<char>(iperfResultsFile)), std::istreambuf_iterator<char>());
 
-        std::string response = "<html><body><h2>Welcome to StarScout!</h2>"
-                               "<p>Host IP: " + hostIP + "</p>"
-                               "<p>Scout ID: " + scoutID + "</p>"
-                               "<h3>Iperf Test Results:</h3>"
-                               "<pre>" + iperfResults + "</pre></body></html>";
-        return response;
-    });
+    std::string response = "<html><body><h2>Welcome to StarScout!</h2>"
+                           "<p>Host IP: " + hostIP + "</p>"
+                           "<p>Scout ID: " + scoutID + "</p>"
+                           "<p>Hostname: " + hostname + "</p>"
+                           "<p>Location: " + city + ", " + region + ", " + country + "</p>"
+                           "<p>Coordinates: " + location + "</p>"
+                           "<pre>" + iperfResults + "</pre>"
+                           "</body></html>";
+    return response;
+});
+
 
     app.port(8080).multithreaded().run();
 }
