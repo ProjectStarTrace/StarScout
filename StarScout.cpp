@@ -17,7 +17,7 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
-#include "json.hpp"
+#include "external_libraries/json.hpp"
 
 // Function to check if iperf is installed
 bool isIperfInstalled() {

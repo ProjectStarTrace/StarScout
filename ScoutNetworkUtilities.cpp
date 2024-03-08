@@ -16,7 +16,7 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
-#include "json.hpp" // Ensure this path is correct based on your project's structure
+#include "external_libraries/json.hpp" // Ensure this path is correct based on your project's structure
 
 
 std::string getGeolocation() {
