@@ -20,14 +20,21 @@
 
 std::string getGeolocation() {
     std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("wget -qO - ipinfo.io", "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("popen() failed!");
+    std::string result = " ";
+    try{
+         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("wget -qO - ipinfo.io", "r"), pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
     }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
+    catch (const std::runtime_error& e) {
+    std::cerr << "Error fetching geolocation: " << e.what() << '\n';
+    // Handle error, such as setting a default value or exiting.
     }
+   
     return result;
 }
 
@@ -149,8 +156,11 @@ void runIperfTest() {
             std::cout << "Bandwidth extraction failed." << std::endl;
         }
 
-        std::string geolocationInfo = getGeolocation(); // Fetch geolocation information in real-time
+        std::string geolocationInfo = "";
+        geolocationInfo = getGeolocation(); // Fetch geolocation information in real-time
+        
         try {
+           
             auto jsonGeo = nlohmann::json::parse(geolocationInfo);
 
             // Use a lambda to simplify null or missing check and retrieval
@@ -159,12 +169,14 @@ void runIperfTest() {
             };
 
             // Extract fields safely
-            std::string ip = getJsonStringValue("ip");
-            std::string hostname = getJsonStringValue("hostname");
-            std::string city = getJsonStringValue("city");
-            std::string region = getJsonStringValue("region");
-            std::string country = getJsonStringValue("country");
-            std::string location = getJsonStringValue("loc"); // Contains both latitude and longitude
+            std::string ip,hostname,city, region,country,location = "";
+
+            ip = getJsonStringValue("ip");
+            hostname = getJsonStringValue("hostname");
+            city = getJsonStringValue("city");
+            region = getJsonStringValue("region");
+            country = getJsonStringValue("country");
+            location = getJsonStringValue("loc"); // Contains both latitude and longitude
 
             // Write to StarScoutStats.txt - overwrites file each time with latest info
             {
