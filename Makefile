@@ -17,3 +17,4 @@ $(TARGET): $(SOURCES)
 # Clean the built files
 clean:
 	rm -f $(TARGET)
+	rm -f *.o
