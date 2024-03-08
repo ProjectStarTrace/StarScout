@@ -24,11 +24,25 @@ bool isIperfInstalled() {
     return system("which iperf > /dev/null 2>&1") == 0;
 }
 
+bool isSpeedtestInstalled() {
+    return system("which speedtest") == 0;
+}
+
+
 // Function to install iperf
 void installIperf() {
     std::cout << "iperf not found. Installing iperf..." << std::endl;
     if (system("sudo apt-get update && sudo apt-get install -y iperf") != 0) {
         std::cerr << "Failed to install iperf. Please install it manually." << std::endl;
+        exit(1); // Exit if installation fails
+    }
+}
+
+// Function to install iperf
+void installSpeedtest() {
+    std::cout << "Speedtest CLI not found. Installing Speedtest CLI.." << std::endl;
+    if (system("sudo apt-get install speedtest-cli") != 0) {
+        std::cerr << "Failed to install Speedtest. Please install it manually." << std::endl;
         exit(1); // Exit if installation fails
     }
 }
@@ -53,6 +67,10 @@ void initialSetup() {
         installIperf();
     }
 
+    if (!isSpeedtestInstalled()) {
+        installSpeedtest();
+    }
+
     // Generate and save Scout ID
     std::string scoutID = generateScoutID(12);
     std::ofstream scoutIDFile(".starscout_id");
@@ -73,7 +91,6 @@ std::string readScoutID() {
     std::getline(scoutIDFile, scoutID);
     return scoutID;
 }
-
 
 
 int main() {
