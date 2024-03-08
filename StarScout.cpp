@@ -1,6 +1,7 @@
 #include "crow_all.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <ifaddrs.h>
@@ -142,57 +143,72 @@ void runIperfTest() {
         std::string bandwidth = "(no result)";
         if (std::regex_search(result, matches, bandwidthRegex) && matches.size() > 1) {
             bandwidth = matches[1].str();
+            std::cout << "Extracted bandwidth: " << bandwidth << std::endl;
+        } 
+        else {
+            std::cout << "Bandwidth extraction failed." << std::endl;
         }
 
         std::string geolocationInfo = getGeolocation(); // Fetch geolocation information in real-time
+        try {
+            auto jsonGeo = nlohmann::json::parse(geolocationInfo);
 
-        // Parse the JSON string for gelocation
-            nlohmann::json json = nlohmann::json::parse(geolocationInfo);
+            // Use a lambda to simplify null or missing check and retrieval
+            auto getJsonStringValue = [&jsonGeo](const std::string& key) {
+                return jsonGeo.contains(key) && !jsonGeo[key].is_null() ? jsonGeo[key].get<std::string>() : "Unavailable";
+            };
 
+            // Extract fields safely
+            std::string ip = getJsonStringValue("ip");
+            std::string hostname = getJsonStringValue("hostname");
+            std::string city = getJsonStringValue("city");
+            std::string region = getJsonStringValue("region");
+            std::string country = getJsonStringValue("country");
+            std::string location = getJsonStringValue("loc"); // Contains both latitude and longitude
 
-            // Extract fields for gelocation
-            std::string ip = json["ip"];
-            std::string hostname = json["hostname"];
-            std::string city = json["city"];
-            std::string region = json["region"];
-            std::string country = json["country"];
-            std::string location = json["loc"]; // Contains both latitude and longitude
+            // Write to StarScoutStats.txt - overwrites file each time with latest info
+            {
+                std::ofstream statsFile("StarScoutStats.txt", std::ios::trunc);
+                statsFile << "Last IPERF Test Result: " << bandwidth << "\n"
+                          << "Public IP Address: " << ip << "\n"
+                          << "Hostname: " << hostname << "\n"
+                          << "Location: " << city << ", " << region << ", " << country << "\n"
+                          << "Coordinates: " << location << std::endl;
+            }
 
-        // Write to StarScoutStats.txt - overwrites file each time with latest info
-        {
-            std::ofstream statsFile("StarScoutStats.txt", std::ios::trunc);
-            statsFile << "Last IPERF Test Result: " << bandwidth << "\n"
-                << "Public IP Address: " << ip << "\n"
-                << "Hostname: " << hostname << "\n"
-                << "Location: " << city << ", " << region << ", " << country << "\n"
-                << "Coordinates: " << location << std::endl;
+            // Update StarScoutDatapoints.csv as before...
+            std::ifstream testEmpty("StarScoutDatapoints.csv");
+            bool isEmpty = testEmpty.peek() == std::ifstream::traits_type::eof();
+            testEmpty.close();
+
+            std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
+            if (isEmpty) {
+                datapointsFile << "DateTime,IP Address,Bandwidth,Hostname,City,Region,Country,Coordinates\n";
+            }
+
+            // Append new data
+            datapointsFile << currentDateTime() << ","
+                           << ip << ","
+                           << bandwidth << ","
+                           << hostname << ","
+                           << city << ","
+                           << region << ","
+                           << country << ","
+                           << location << "\n";
+
+        } catch (const nlohmann::json::parse_error& e) {
+            std::cerr << "JSON parse error: " << e.what() << '\n';
+        } catch (const nlohmann::json::type_error& e) {
+            std::cerr << "JSON type error: " << e.what() << '\n';
+        } catch (const std::exception& e) {
+            std::cerr << "Standard exception: " << e.what() << '\n';
         }
-
-        // Check if the CSV file is empty and write headers if so
-        std::ifstream testEmpty("StarScoutDatapoints.csv");
-        bool isEmpty = testEmpty.peek() == std::ifstream::traits_type::eof();
-        testEmpty.close();
-
-        std::ofstream datapointsFile("StarScoutDatapoints.csv", std::ios::app);
-        if (isEmpty) {
-            datapointsFile << "DateTime,IP Address,Bandwidth,Hostname,City,Region,Country,Coordinates\n";
-        }
-
-        // Append new data
-        datapointsFile << currentDateTime() << ","
-                    << ip << ","
-                    << bandwidth << ","
-                    << hostname << ","
-                    << city << ","
-                    << region << ","
-                    << country << ","
-                    << location << "\n";
-
 
         // Wait for 30 minutes before running the test again
         std::this_thread::sleep_for(std::chrono::minutes(30));
     }
 }
+
 
 int main() {
     struct stat buffer;
@@ -210,7 +226,7 @@ int main() {
     CROW_ROUTE(app, "/")([]() {
     std::string hostIP = getHostIPAddress();
     std::string scoutID = readScoutID();
-    
+    std::string bandwidth = "Unknown"; // Default value
     std::string hostname, city, region, country, location;
 
     // Read and extract data from StarScoutStats.txt
@@ -223,35 +239,42 @@ int main() {
             } else if (line.find("Hostname:") != std::string::npos) {
                 hostname = line.substr(line.find(":") + 2);
             } else if (line.find("Location:") != std::string::npos) {
-                auto start = line.find(":") + 2;
-                auto end = line.find(",");
-                city = line.substr(start, end - start);
-
-                start = end + 2;
-                end = line.find(",", start);
-                region = line.substr(start, end - start);
-
-                country = line.substr(end + 2);
+                auto locDelim = line.find(":") + 2;
+                city = line.substr(locDelim, line.find(",", locDelim) - locDelim);
+                auto regionDelim = line.find(",", locDelim) + 2;
+                region = line.substr(regionDelim, line.find(",", regionDelim) - regionDelim);
+                country = line.substr(line.rfind(",") + 2);
             } else if (line.find("Coordinates:") != std::string::npos) {
                 location = line.substr(line.find(":") + 2);
+            } else if (line.find("Last IPERF Test Result:") != std::string::npos) {
+                bandwidth = line.substr(line.find(":") + 2);
             }
         }
         statsFile.close();
     }
 
     // Read iperf results
-        std::ifstream iperfResultsFile(".iperf_results");
-        std::string iperfResults((std::istreambuf_iterator<char>(iperfResultsFile)), std::istreambuf_iterator<char>());
+    std::ifstream iperfResultsFile(".iperf_results");
+    std::string iperfResults((std::istreambuf_iterator<char>(iperfResultsFile)), std::istreambuf_iterator<char>());
 
-    std::string response = "<html><body><h2>Welcome to StarScout!</h2>"
-                           "<p>Host IP: " + hostIP + "</p>"
-                           "<p>Scout ID: " + scoutID + "</p>"
-                           "<p>Hostname: " + hostname + "</p>"
-                           "<p>Location: " + city + ", " + region + ", " + country + "</p>"
-                           "<p>Coordinates: " + location + "</p>"
-                           "<pre>" + iperfResults + "</pre>"
-                           "</body></html>";
-    return response;
+    std::ifstream file("home.html");
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    file.close();
+    std::string content = buffer.str();
+    
+    std::string placeholders[] = {"{{hostIP}}", "{{scoutID}}", "{{hostname}}", "{{city}}", "{{region}}", "{{country}}", "{{location}}", "{{bandwidth}}"};
+    std::string values[] = {hostIP, scoutID, hostname, city, region, country, location, bandwidth};
+
+    for (size_t i = 0; i < sizeof(placeholders)/sizeof(placeholders[0]); ++i) {
+        size_t pos = content.find(placeholders[i]);
+        while (pos != std::string::npos) {
+            content.replace(pos, placeholders[i].length(), values[i]);
+            pos = content.find(placeholders[i], pos + values[i].length());
+        }
+    }
+
+    return content;
 });
 
 
