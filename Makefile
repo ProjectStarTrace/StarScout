@@ -8,7 +8,7 @@ CFLAGS = -Wall
 TARGET = StarScout
 
 # Source files
-SOURCES = StarScout.cpp ScoutNetworkUtilities.cpp
+SOURCES = StarScout.cpp ScoutNetworkUtilities.cpp 
 
 # Build target
 $(TARGET): $(SOURCES)
