@@ -7,9 +7,12 @@ CFLAGS = -Wall
 # Target executable name
 TARGET = StarScout
 
+# Source files
+SOURCES = StarScout.cpp ScoutNetworkUtilities.cpp
+
 # Build target
-$(TARGET): StarScout.cpp
-	$(CC) $(CFLAGS) StarScout.cpp -o $(TARGET)
+$(TARGET): $(SOURCES)
+	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET)
 
 # Clean the built files
 clean:
