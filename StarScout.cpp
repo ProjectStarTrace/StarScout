@@ -1,3 +1,4 @@
+#include "FirebaseUploader.h"
 #include "ScoutNetworkUtilities.h"
 #include "external_libraries/crow_all.h"
 #include <iostream>
@@ -28,6 +29,9 @@ bool isSpeedtestInstalled() {
     return system("which speedtest") == 0;
 }
 
+bool isPythonInstalled() {
+    return system("which python3") == 0;
+}
 
 // Function to install iperf
 void installIperf() {
@@ -46,6 +50,33 @@ void installSpeedtest() {
         exit(1); // Exit if installation fails
     }
 }
+
+// Function to install Python
+void installPython() {
+    std::cout << "Python not found. Installing Python.." << std::endl;
+    if (system("sudo apt-get install python3") != 0) {
+        std::cerr << "Failed to install Python. Please install it manually." << std::endl;
+        exit(1); // Exit if installation fails
+    }
+}
+
+// Function to install Google-Auth
+void installGoogleAuth() {
+    std::cout << "Ensuring Google Auth is installed.." << std::endl;
+    if (system("sudo apt install python3-google-auth python3-google-auth-oauthlib python3-google-auth-httplib2") != 0) {
+        std::cerr << "Failed to install Google Auth through PIP. Please install it manually." << std::endl;
+        exit(1); // Exit if installation fails
+    }
+}
+
+void installPIP3() {
+    std::cout << "Ensuring PIP3 is installed.." << std::endl;
+    if (system("sudo apt install python3-pip") != 0) {
+        std::cerr << "Failed to install PIP3 Please install it manually. (sudo apt install python3-pip)" << std::endl;
+        exit(1); // Exit if installation fails
+    }
+}
+
 
 // Function to generate a unique Scout ID
 std::string generateScoutID(size_t length) {
@@ -71,6 +102,13 @@ void initialSetup() {
         installSpeedtest();
     }
 
+    if (!isPythonInstalled()) {
+        installPython();
+    }
+
+    installPIP3();
+    installGoogleAuth(); //ensures that Google Auth is Installed.
+
     // Generate and save Scout ID
     std::string scoutID = generateScoutID(12);
     std::ofstream scoutIDFile(".starscout_id");
@@ -92,6 +130,25 @@ std::string readScoutID() {
     return scoutID;
 }
 
+std::string getAccessToken(const std::string& serviceAccountPath) {
+    std::string command = "python3 get_access_token.py " + serviceAccountPath;
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+
+    // Assuming the output is the token directly, trim any newline or whitespace
+    result.erase(0, result.find_first_not_of(" \n\r\t")); // Trim left
+    result.erase(result.find_last_not_of(" \n\r\t")+1);   // Trim right
+
+    return result;
+}
+
 
 int main() {
     struct stat buffer;
@@ -105,8 +162,33 @@ int main() {
 
     crow::SimpleApp app;
 
+    std::string projectID = "startrace-81336";
+    std::string collection = "starscoutData";
+    std::string serviceAccountPath = "startrace-81336-ef5a4476c9d1.json";
+    std::string accessToken = "";
 
-    CROW_ROUTE(app, "/")([]() {
+    try {
+        accessToken = getAccessToken(serviceAccountPath);
+        std::cout << "Access Token: " << accessToken << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    }
+
+    FirebaseUploader uploader(projectID, collection);
+
+    json data = {
+    {"fields", {
+        {"exampleField", {{"stringValue", "Example Value"}}}
+        
+    }}
+};
+
+    std::cout << "\n\n Data to be uploaded\n\n\n" << std::endl;
+    std::cout << "JSON Payload: " << data.dump() << std::endl;
+    uploader.uploadData(data,accessToken);
+
+    CROW_ROUTE(app, "/")([]() 
+    {
     std::string hostIP = getHostIPAddress();
     std::string scoutID = readScoutID();
     std::string download = "Waiting for Result"; // Default value
@@ -160,6 +242,7 @@ int main() {
 
     return content;
 });
+    
 
 
     app.port(8080).multithreaded().run();
