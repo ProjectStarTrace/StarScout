@@ -191,15 +191,8 @@ void grabNetworkInfo() {
                            << country << ","
                            << location << "\n";
 
-        } catch (const nlohmann::json::parse_error& e) {
-            std::cerr << "JSON parse error: " << e.what() << '\n';
-        } catch (const nlohmann::json::type_error& e) {
-            std::cerr << "JSON type error: " << e.what() << '\n';
-        } catch (const std::exception& e) {
-            std::cerr << "Standard exception: " << e.what() << '\n';
-        }
 
-    std::string projectID = "startrace-81336";
+          std::string projectID = "startrace-81336";
     std::string collection = "starscoutData";
     std::string serviceAccountPath = "startrace-81336-ef5a4476c9d1.json";
     std::string accessToken = "";
@@ -214,35 +207,36 @@ void grabNetworkInfo() {
         std::cerr << "Exception: " << e.what() << std::endl;
     }
 
-    FirebaseUploader uploader(projectID, collection, scoutID);
+    FirebaseUploader uploader(projectID, collection, scoutID, currentDateTime());
     
     json data = 
     {
         {"fields", {
-            {"ScoutID", {{"stringValue", scoutID}}}
-            
+            {"ScoutID", {{"stringValue", scoutID}}},
+            {"DateTime", {{"stringValue", currentDateTime()}}},
+            {"HostIP", {{"stringValue", hostIP}}},
+            {"DownloadSpeed", {{"doubleValue", downloadSpeed}}},
+            {"UploadSpeed", {{"doubleValue", uploadSpeed}}},
+            {"City", {{"stringValue", city}}},
+            {"Region", {{"stringValue", region}}},
+            {"Country", {{"stringValue", country}}},
+            //{"geolocation", {{"geoPointValue", location}}} I NEED TO WORK ON THIS ONE
         }}
     };
-
-    //    json data = 
-    // {
-    //     {"fields", {
-    //         {scoutID, 
-    //             {{"hostIP", hostIP}},
-    //             {{"downloadSpeed", download}},
-    //             {{"uploadSpeed", upload}},
-    //             {{"city", city}},
-    //             {{"region", region}},
-    //             {{"country", country}},
-    //             {{"geolocation", location}}
-    //         }
-    //     }}
-    // };
 
     std::cout << "\n\n Data to be uploaded\n\n\n" << std::endl;
     std::cout << "JSON Payload: " << data.dump() << std::endl;
     uploader.uploadData(data,accessToken);
 
+        } catch (const nlohmann::json::parse_error& e) {
+            std::cerr << "JSON parse error: " << e.what() << '\n';
+        } catch (const nlohmann::json::type_error& e) {
+            std::cerr << "JSON type error: " << e.what() << '\n';
+        } catch (const std::exception& e) {
+            std::cerr << "Standard exception: " << e.what() << '\n';
+        }
+
+  
 
         // Wait for 30 minutes before running the test again
         std::this_thread::sleep_for(std::chrono::minutes(30));

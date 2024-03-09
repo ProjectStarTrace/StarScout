@@ -10,13 +10,14 @@ using json = nlohmann::json;
 
 class FirebaseUploader {
 public:
-    FirebaseUploader(const std::string& projectId, const std::string& collection, const std::string& scoutID);
+    FirebaseUploader(const std::string& projectId, const std::string& collection, const std::string& scoutID,const std::string& currentDateTime);
     void uploadData(const json& data, const std::string& accessToken);
 
 private:
     std::string _projectId;
     std::string _collection;
     std::string _scoutID; // Declaration of _scoutID
+    std::string _currentDateTime;
 
     static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::string *userp);
 };

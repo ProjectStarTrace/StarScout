@@ -5,8 +5,8 @@
 #include <iostream>
 #include <cstddef>
 
-FirebaseUploader::FirebaseUploader(const std::string& projectId, const std::string& collection, const std::string& scoutID)
-    : _projectId(projectId), _collection(collection), _scoutID(scoutID) {} // Assume _scoutID is declared in the header
+FirebaseUploader::FirebaseUploader(const std::string& projectId, const std::string& collection, const std::string& scoutID, const std::string& currentDateTime)
+    : _projectId(projectId), _collection(collection), _scoutID(scoutID),  _currentDateTime(currentDateTime) {} // Assume _scoutID is declared in the header
 
 size_t FirebaseUploader::WriteCallback(void *contents, size_t size, size_t nmemb, std::string *userp) {
     userp->append((char*)contents, size * nmemb);
@@ -19,7 +19,7 @@ void FirebaseUploader::uploadData(const json& data, const std::string& accessTok
     std::string readBuffer;
 
     // Constructing Firestore REST API URL for documents in a collection
-    std::string url = "https://firestore.googleapis.com/v1/projects/" + _projectId + "/databases/(default)/documents/" + _collection + "/?documentId=" + _scoutID;
+    std::string url = "https://firestore.googleapis.com/v1/projects/" + _projectId + "/databases/(default)/documents/" + _collection;
     std::cout << "Request URL: " << url << std::endl;
 
     struct curl_slist *headers = NULL;
