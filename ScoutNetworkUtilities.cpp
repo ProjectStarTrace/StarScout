@@ -192,7 +192,7 @@ void grabNetworkInfo() {
                            << location << "\n";
 
 
-          std::string projectID = "startrace-81336";
+    std::string projectID = "startrace-81336";
     std::string collection = "starscoutData";
     std::string serviceAccountPath = "startrace-81336-ef5a4476c9d1.json";
     std::string accessToken = "";
