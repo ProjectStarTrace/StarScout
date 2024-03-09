@@ -130,8 +130,8 @@ void grabNetworkInfo() {
             uploadSpeed = jsonResult["upload"]; // This is in bytes per second
 
             // Convert speeds from bytes per second to Mbits/sec for consistency
-            downloadSpeed = (downloadSpeed * 8) / (1000 * 1000); // Convert bytes to bits and then to Mbits
-            uploadSpeed = (uploadSpeed * 8) / (1000 * 1000); // Convert bytes to bits and then to Mbits
+            downloadSpeed = (downloadSpeed * 8) / (1000 * 10000); // Convert bytes to bits and then to Mbits
+            uploadSpeed = (uploadSpeed * 8) / (1000 * 10000); // Convert bytes to bits and then to Mbits
 
             std::cout << "Download Speed: " << downloadSpeed << " Mbits/sec" << std::endl;
             std::cout << "Upload Speed: " << uploadSpeed << " Mbits/sec" << std::endl;
