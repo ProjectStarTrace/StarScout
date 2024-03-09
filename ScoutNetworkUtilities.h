@@ -7,6 +7,6 @@ void grabNetworkInfo();
 std::string currentDateTime();
 std::string getHostIPAddress();
 std::string getGeolocation();
-
+std::string readScoutID();
 
 #endif // SCOUT_NETWORK_UTILITIES_H

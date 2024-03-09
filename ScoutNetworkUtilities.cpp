@@ -1,3 +1,4 @@
+#include "FirebaseUploader.h"
 #include "ScoutNetworkUtilities.h"
 #include <iostream>
 #include <fstream>
@@ -72,6 +73,33 @@ std::string currentDateTime() {
     std::string s(30, '\0');
     std::strftime(&s[0], s.size(), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
     return s.substr(0, s.find('\0'));
+}
+
+std::string getAccessToken(const std::string& serviceAccountPath) {
+    std::string command = "python3 get_access_token.py " + serviceAccountPath;
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+
+    // Assuming the output is the token directly, trim any newline or whitespace
+    result.erase(0, result.find_first_not_of(" \n\r\t")); // Trim left
+    result.erase(result.find_last_not_of(" \n\r\t")+1);   // Trim right
+
+    return result;
+}
+
+
+std::string readScoutID() {
+    std::string scoutID;
+    std::ifstream scoutIDFile(".starscout_id");
+    std::getline(scoutIDFile, scoutID);
+    return scoutID;
 }
 
 // Function to run iperf test and update files
@@ -170,6 +198,51 @@ void grabNetworkInfo() {
         } catch (const std::exception& e) {
             std::cerr << "Standard exception: " << e.what() << '\n';
         }
+
+    std::string projectID = "startrace-81336";
+    std::string collection = "starscoutData";
+    std::string serviceAccountPath = "startrace-81336-ef5a4476c9d1.json";
+    std::string accessToken = "";
+    
+    std::string scoutID = readScoutID();
+
+    //FireStore Upload
+    try {
+        accessToken = getAccessToken(serviceAccountPath);
+        std::cout << "Access Token: " << accessToken << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    }
+
+    FirebaseUploader uploader(projectID, collection, scoutID);
+    
+    json data = 
+    {
+        {"fields", {
+            {"ScoutID", {{"stringValue", scoutID}}}
+            
+        }}
+    };
+
+    //    json data = 
+    // {
+    //     {"fields", {
+    //         {scoutID, 
+    //             {{"hostIP", hostIP}},
+    //             {{"downloadSpeed", download}},
+    //             {{"uploadSpeed", upload}},
+    //             {{"city", city}},
+    //             {{"region", region}},
+    //             {{"country", country}},
+    //             {{"geolocation", location}}
+    //         }
+    //     }}
+    // };
+
+    std::cout << "\n\n Data to be uploaded\n\n\n" << std::endl;
+    std::cout << "JSON Payload: " << data.dump() << std::endl;
+    uploader.uploadData(data,accessToken);
+
 
         // Wait for 30 minutes before running the test again
         std::this_thread::sleep_for(std::chrono::minutes(30));

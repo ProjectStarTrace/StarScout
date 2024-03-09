@@ -1,5 +1,5 @@
 curl -X POST \
   -H "Authorization: Bearer ya29.c.c0AY_VpZj-Sw-1bu7ba9iGT2WyFFf2-fbNnSIulLsde2ElumZMz8lI-M2UM4WILhkKD7RwFiFDWt80_n7-s8wzHvUQ_OLL46Ykj_ZpE22YviVjupIS90c94WsiGfTlZIYZVlBF3lMXBDaheP-y8jYKq0Ay9X-rw-nDFcsEnjXdGp8N5w7Q1om9qTPDyjeAAqBPIN1y714NTArmLdLHMNfBG7dkIYyGw6BbIkKB4pKtSTDAU7I9gNEB7IcurcDeLC4w6Ybzffbrw8V2j4OZ2okinBHVPWKQ_OxkF4fLQUEs6Vx7AkHA1M2HKz7c01p9PdQVCn-objjNTi-3EdX0riY-ljnkJomIdBSfwUrpe2RdxUnAwxDWyCKg21M8H385AQ8n4br-WuOySrzZnUf8rVun72WkFe3y5vWyIZmodunVe_igY71-aXxx4q-MO5bmIMa2fZ4yMg8hsxeynjm0256gll3p_irgrggkj2ivVyFJZ6p23pJoj6zpigYVlhbiib3tIeUJgFws86B0ztS-46pUOsudOQ8jiW23-bRr3YVkg_2exx0dOJMU9Mqqgq3ipV2fIVMuJjRkU_Wea09snF2prQmhtYz_XizaIIegxUpW5aRswqmpzi5Wuvu01vyi68_U8XuXxWQilShfyc23_w7za8yoU2b_9ebu-6usanxdIwf8XIual-SZ5aURMq05lo41x7OMjRZ5-SQ6I2xQ3Wyj00rvmtXpt-zr39pohl-7tQ_jpMkaW8dhy9nIXJ3daQFIUdbbIYWb-58Q3742sgM7-4IkZgZ_6fWy-gw4fhWkub5-talhXjtiZ0hqn4d-vRj3ob5iaQ36shzM5F_UJvwviJoVdQumQWnzkM-xF3FgQ85kx1FItBiXIp9gWOysUxfhQ3aXxl6Sxu_-ffhZ1n5v_as_z4rnk_QJ1s1S7lqb7ibOX1xf3BVpVMV5dbajhO9XFQ90oqyUqxrdwm58fe7lr-i-xSFwnrfJV_X2Xcoedmn529aBtIu4IJz" \
   -H "Content-Type: application/json" \
-  -d '{"fields": {"exampleField": {"stringValue": "Example Value"}}}' \
-  "https://firestore.googleapis.com/v1/projects/startrace-81336/databases/(default)/documents/starscoutData"
+  -d '{"fields": {"ScoutID": {"stringValue": "sSoUWCO1oh3v"}}}' \
+  "https://firestore.googleapis.com/v1/projects/startrace-81336/databases/(default)/documents/starscoutData/?documentId=PIZZA"
