@@ -209,6 +209,20 @@ void grabNetworkInfo() {
 
     FirebaseUploader uploader(projectID, collection, scoutID, currentDateTime());
     
+
+    // Extract latitude and longitude from location
+    double latitude = 0.0, longitude = 0.0;
+
+    try {
+        std::string delimiter = ",";
+        size_t pos = location.find(delimiter);
+        latitude = std::stod(location.substr(0, pos)); // Convert first part to double
+        longitude = std::stod(location.substr(pos + 1, location.length())); // Convert second part to double
+    } catch (const std::exception& e) {
+        std::cerr << "Exception when parsing coordinates: " << e.what() << std::endl;
+        // Handle error, such as setting a default value or logging
+    }
+
     json data = 
     {
         {"fields", {
@@ -220,7 +234,8 @@ void grabNetworkInfo() {
             {"City", {{"stringValue", city}}},
             {"Region", {{"stringValue", region}}},
             {"Country", {{"stringValue", country}}},
-            //{"geolocation", {{"geoPointValue", location}}} I NEED TO WORK ON THIS ONE
+            {"geolocation", {{"geoPointValue", {{"latitude", latitude}, {"longitude", longitude}}}}}
+
         }}
     };
 
